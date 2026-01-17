@@ -1,4 +1,15 @@
 services:
+  tailscale:
+    image: tailscale/tailscale:stable
+    hostname: clawdbot-gateway
+    environment:
+      TS_AUTHKEY: ${TAILSCALE_AUTHKEY}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "true"
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+    restart: unless-stopped
+
   clawdbot-gateway:
     image: ${CLAWDBOT_IMAGE:-clawdbot:local}
     environment:
@@ -11,9 +22,9 @@ services:
     volumes:
       - clawdbot-config-dir:/home/node/.clawdbot
       - clawdbot-workspace-dir:/home/node/clawd
-    ports:
-      - "${CLAWDBOT_GATEWAY_PORT:-18789}:18789"
-      - "${CLAWDBOT_BRIDGE_PORT:-18790}:18790"
+    network_mode: "service:tailscale"
+    depends_on:
+      - tailscale
     init: true
     restart: unless-stopped
     command:
@@ -45,5 +56,6 @@ services:
     entrypoint: ["node", "dist/index.js"]
 
 volumes:
+  tailscale-state:
   clawdbot-config-dir:
   clawdbot-workspace-dir:
