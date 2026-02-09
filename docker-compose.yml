@@ -1,4 +1,15 @@
 services:
+  tailscale:
+    image: tailscale/tailscale:stable
+    hostname: openclaw-gateway
+    environment:
+      TS_AUTHKEY: ${TAILSCALE_AUTHKEY}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "true"
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+    restart: unless-stopped
+
   openclaw-gateway:
     image: ${OPENCLAW_IMAGE:-openclaw:local}
     environment:
@@ -9,11 +20,12 @@ services:
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
     volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
-    ports:
-      - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
-      - "${OPENCLAW_BRIDGE_PORT:-18790}:18790"
+      - openclaw-config-dir:/home/node/.openclaw
+      - openclaw-workspace-dir:/home/node/.openclaw/workspace
+      - openclaw-linuxbrew-dir:/home/node/.linuxbrew
+    network_mode: "service:tailscale"
+    depends_on:
+      - tailscale
     init: true
     restart: unless-stopped
     command:
@@ -38,9 +50,15 @@ services:
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
     volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - openclaw-config-dir:/home/node/.openclaw
+      - openclaw-workspace-dir:/home/node/.openclaw/workspace
     stdin_open: true
     tty: true
     init: true
     entrypoint: ["node", "dist/index.js"]
+
+volumes:
+  tailscale-state:
+  openclaw-config-dir:
+  openclaw-workspace-dir:
+  openclaw-linuxbrew-dir:
