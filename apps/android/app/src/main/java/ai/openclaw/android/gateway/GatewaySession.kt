@@ -193,7 +193,9 @@ class GatewaySession(
     suspend fun connect() {
       val scheme = if (tls != null) "wss" else "ws"
       val url = "$scheme://${endpoint.host}:${endpoint.port}"
-      val request = Request.Builder().url(url).build()
+      val httpScheme = if (tls != null) "https" else "http"
+      val origin = "$httpScheme://${endpoint.host}:${endpoint.port}"
+      val request = Request.Builder().url(url).header("Origin", origin).build()
       socket = client.newWebSocket(request, Listener())
       try {
         connectDeferred.await()
@@ -258,6 +260,7 @@ class GatewaySession(
             val nonce = awaitConnectNonce()
             sendConnect(nonce)
           } catch (err: Throwable) {
+            Log.e("OpenClawGateway", "sendConnect failed", err)
             connectDeferred.completeExceptionally(err)
             closeQuietly()
           }
@@ -562,6 +565,7 @@ class GatewaySession(
         attempt = 0
       } catch (err: Throwable) {
         attempt += 1
+        Log.e("OpenClawGateway", "connect failed (attempt=$attempt)", err)
         onDisconnected("Gateway error: ${err.message ?: err::class.java.simpleName}")
         val sleepMs = minOf(8_000L, (350.0 * Math.pow(1.7, attempt.toDouble())).toLong())
         delay(sleepMs)

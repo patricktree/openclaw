@@ -8,6 +8,7 @@ import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.Signature
 import java.security.spec.PKCS8EncodedKeySpec
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -44,9 +45,9 @@ class DeviceIdentityStore(context: Context) {
     return try {
       val privateKeyBytes = Base64.decode(identity.privateKeyPkcs8Base64, Base64.DEFAULT)
       val keySpec = PKCS8EncodedKeySpec(privateKeyBytes)
-      val keyFactory = KeyFactory.getInstance("Ed25519")
+      val keyFactory = KeyFactory.getInstance("Ed25519", bcProvider)
       val privateKey = keyFactory.generatePrivate(keySpec)
-      val signature = Signature.getInstance("Ed25519")
+      val signature = Signature.getInstance("Ed25519", bcProvider)
       signature.initSign(privateKey)
       signature.update(payload.toByteArray(Charsets.UTF_8))
       base64UrlEncode(signature.sign())
@@ -97,7 +98,7 @@ class DeviceIdentityStore(context: Context) {
   }
 
   private fun generate(): DeviceIdentity {
-    val keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
+    val keyPair = KeyPairGenerator.getInstance("Ed25519", bcProvider).generateKeyPair()
     val spki = keyPair.public.encoded
     val rawPublic = stripSpkiPrefix(spki)
     val deviceId = sha256Hex(rawPublic)
@@ -142,6 +143,13 @@ class DeviceIdentityStore(context: Context) {
   }
 
   companion object {
+    /**
+     * Full BouncyCastle provider instance for software Ed25519 keys.
+     * Android ships a stripped-down BC that lacks Ed25519; using the instance directly
+     * bypasses the system provider registry and avoids shadowing issues.
+     */
+    private val bcProvider = BouncyCastleProvider()
+
     private val ED25519_SPKI_PREFIX =
       byteArrayOf(
         0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
