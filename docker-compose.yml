@@ -52,6 +52,9 @@ services:
     volumes:
       - openclaw-config-dir:/home/node/.openclaw
       - openclaw-workspace-dir:/home/node/.openclaw/workspace
+    network_mode: "service:tailscale"
+    depends_on:
+      - tailscale
     stdin_open: true
     tty: true
     init: true
