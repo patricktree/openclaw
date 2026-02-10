@@ -1,33 +1,26 @@
 services:
-  tailscale:
-    image: tailscale/tailscale:stable
-    hostname: openclaw-gateway
-    environment:
-      TS_AUTHKEY: ${TAILSCALE_AUTHKEY}
-      TS_STATE_DIR: /var/lib/tailscale
-      TS_USERSPACE: "true"
-    volumes:
-      - tailscale-state:/var/lib/tailscale
-    restart: unless-stopped
-
   openclaw-gateway:
     image: ${OPENCLAW_IMAGE:-openclaw:local}
+    hostname: openclaw-gateway
     environment:
       HOME: /home/node
       TERM: xterm-256color
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
+      OPENCLAW_GATEWAY_PORT: ${OPENCLAW_GATEWAY_PORT:-18789}
       CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
+      TS_AUTHKEY: ${TAILSCALE_AUTHKEY}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_HOSTNAME: openclaw-gateway
     volumes:
       - openclaw-config-dir:/home/node/.openclaw
       - openclaw-workspace-dir:/home/node/.openclaw/workspace
       - openclaw-linuxbrew-dir:/home/node/.linuxbrew
-    network_mode: "service:tailscale"
-    depends_on:
-      - tailscale
+      - tailscale-state:/var/lib/tailscale
     init: true
     restart: unless-stopped
+    entrypoint: ["/app/docker-entrypoint.sh"]
     command:
       [
         "node",
@@ -52,9 +45,9 @@ services:
     volumes:
       - openclaw-config-dir:/home/node/.openclaw
       - openclaw-workspace-dir:/home/node/.openclaw/workspace
-    network_mode: "service:tailscale"
+    network_mode: "service:openclaw-gateway"
     depends_on:
-      - tailscale
+      - openclaw-gateway
     stdin_open: true
     tty: true
     init: true
